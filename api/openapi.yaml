@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: PubMed API
+  description: A REST API for searching and retrieving PubMed articles
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@pubmed-api.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.pubmed-api.com
+    description: Production server
+
+paths:
+  /healthz:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API service
+      operationId: healthz
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: pubmed-api
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                    format: float64
+                    example: 1234.56
+
+  /v1/articles:
+    get:
+      summary: Search and list articles
+      description: Search articles with filters, pagination, and sorting
+      operationId: searchArticles
+      tags:
+        - Articles
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search query (searches title + abstract)
+          required: false
+          schema:
+            type: string
+            example: ibuprofen
+        - name: year
+          in: query
+          description: Filter by publication year
+          required: false
+          schema:
+            type: integer
+            example: 2020
+        - name: journal
+          in: query
+          description: Filter by journal (exact match)
+          required: false
+          schema:
+            type: string
+            example: "J Clin Pharm"
+        - name: author
+          in: query
+          description: Filter by author (substring match)
+          required: false
+          schema:
+            type: string
+            example: Smith
+        - name: page
+          in: query
+          description: Page number (default 1)
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          description: Number of items per page (default 10, max 50)
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+        - name: sort
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [relevance, year_desc, year_asc]
+            default: relevance
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/articles/{pmid}:
+    get:
+      summary: Get article by PubMed ID
+      description: Retrieve a single article by its PubMed ID
+      operationId: getArticle
+      tags:
+        - Articles
+      parameters:
+        - name: pmid
+          in: path
+          required: true
+          description: PubMed ID
+          schema:
+            type: string
+            example: "12345678"
+      responses:
+        '200':
+          description: Article found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Article'
+        '404':
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/stats:
+    get:
+      summary: Get statistics
+      description: Returns aggregate statistics about articles
+      operationId: getStats
+      tags:
+        - Statistics
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Article:
+      type: object
+      required:
+        - pmid
+        - title
+        - authors
+        - journal
+        - pub_year
+      properties:
+        pmid:
+          type: string
+          description: PubMed ID
+          example: "12345678"
+        title:
+          type: string
+          description: Article title
+          example: "Ibuprofen and its clinical use"
+        abstract:
+          type: string
+          description: Article abstract
+          example: "Ibuprofen is a nonsteroidal anti-inflammatory drug..."
+        authors:
+          type: array
+          items:
+            type: string
+          description: List of authors
+          example: ["Smith J", "Lee K"]
+        journal:
+          type: string
+          description: Journal name
+          example: "J Clin Pharm"
+        pub_year:
+          type: integer
+          description: Publication year
+          example: 2020
+        mesh_terms:
+          type: array
+          items:
+            type: string
+          description: MeSH terms
+          example: ["Ibuprofen", "Anti-Inflammatory Agents"]
+        doi:
+          type: string
+          description: Digital Object Identifier
+          example: "10.1000/jcp.2020.1234"
+
+    SearchResult:
+      type: object
+      required:
+        - items
+        - page
+        - page_size
+        - total
+        - took_ms
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        page_size:
+          type: integer
+          description: Number of items per page
+          example: 10
+        total:
+          type: integer
+          description: Total number of matching articles
+          example: 100
+        took_ms:
+          type: integer
+          description: Query execution time in milliseconds
+          example: 3
+
+    Stats:
+      type: object
+      required:
+        - top_journals
+        - year_histogram
+      properties:
+        top_journals:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalCount'
+          description: Top 5 journals by article count
+        year_histogram:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Histogram of articles by publication year
+          example:
+            2020: 30
+            2021: 35
+            2022: 33
+
+    JournalCount:
+      type: object
+      required:
+        - journal
+        - count
+      properties:
+        journal:
+          type: string
+          example: "J Clin Pharm"
+        count:
+          type: integer
+          example: 15
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "article not found"
+
