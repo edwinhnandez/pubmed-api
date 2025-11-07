@@ -6,8 +6,9 @@ import (
 	"pubmed-api/internal/service"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"log/slog"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // Handler handles HTTP requests
@@ -99,4 +100,3 @@ func (h *Handler) writeError(w http.ResponseWriter, status int, message string) 
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
-

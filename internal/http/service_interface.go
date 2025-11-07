@@ -16,4 +16,3 @@ type ArticleServiceInterface interface {
 
 // Ensure ArticleService implements the interface
 var _ ArticleServiceInterface = (*service.ArticleService)(nil)
-

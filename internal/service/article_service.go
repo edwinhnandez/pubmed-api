@@ -108,4 +108,3 @@ func ParseSearchFilters(queryParams map[string][]string) *domain.SearchFilters {
 
 	return filters
 }
-
